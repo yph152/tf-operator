@@ -21,7 +21,7 @@ install:
 
 script:
   - go build -o tf-operator github.com/kubeflow/tf-operator/cmd/tf-operator
-  - go build -o tf-operator github.com/kubeflow/tf-operator/cmd/tf-operator.v2
+  - go build -o tf-operator github.com/kubeflow/tf-operator/cmd/tf-operator
   - gometalinter --config=linter_config.json --vendor ./...
   # We customize the build step because by default
   # Travis runs go test -v ./... which will include the vendor
@@ -30,7 +30,7 @@ script:
   # For now though we just run all tests in pkg.
   # And we can not use ** because goveralls uses filepath.Match
   # to match ignore files and it does not support it.
-  - goveralls -service=travis-ci -v -package ./pkg/... -ignore "pkg/client/*/*.go,pkg/client/*/*/*.go,pkg/client/*/*/*/*.go,pkg/client/*/*/*/*/*.go,pkg/client/*/*/*/*/*/*.go,pkg/client/*/*/*/*/*/*/*.go,pkg/apis/tensorflow/*/zz_generated.*.go"
+  - goveralls -service=travis-ci -v -package ./pkg/... -ignore "pkg/client/*/*.go,pkg/client/*/*/*.go,pkg/client/*/*/*/*.go,pkg/client/*/*/*/*/*.go,pkg/client/*/*/*/*/*/*.go,pkg/client/*/*/*/*/*/*/*.go,pkg/apis/tensorflow/*/zz_generated.*.go,pkg/apis/tensorflow/*/*_generated.go"
 
 notifications:
   webhooks: https://www.travisbuddy.com/

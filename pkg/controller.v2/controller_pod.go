@@ -32,13 +32,17 @@ import (
 	tfv1alpha2 "github.com/kubeflow/tf-operator/pkg/apis/tensorflow/v1alpha2"
 )
 
+const (
+	tfConfig = "TF_CONFIG"
+)
+
 // reconcilePods checks and updates pods for each given TFReplicaSpec.
 // It will requeue the tfjob in case of an error while creating/deleting pods.
 func (tc *TFJobController) reconcilePods(
 	tfjob *tfv1alpha2.TFJob,
 	pods []*v1.Pod,
 	rtype tfv1alpha2.TFReplicaType,
-	spec *tfv1alpha2.TFReplicaSpec) error {
+	spec *tfv1alpha2.TFReplicaSpec, rstatus map[string]v1.PodPhase) error {
 
 	// Convert TFReplicaType to lower string.
 	rt := strings.ToLower(string(rtype))
@@ -51,7 +55,7 @@ func (tc *TFJobController) reconcilePods(
 	podSlices := getPodSlices(pods, replicas, loggerForReplica(tfjob, rt))
 	for index, podSlice := range podSlices {
 		if len(podSlice) > 1 {
-			loggerForReplica(tfjob, rt).Warning("We have to many pods for the worker %d", index)
+			loggerForReplica(tfjob, rt).Warningf("We have to many pods for %s %d", rt, index)
 			// TODO(gaocegege): Kill some pods.
 		} else if len(podSlice) == 0 {
 			loggerForReplica(tfjob, rt).Infof("need to create new pod: %s-%d", rt, index)
@@ -63,10 +67,18 @@ func (tc *TFJobController) reconcilePods(
 			// We already have one, and check the status.
 			pod := podSlice[0]
 			updateTFJobReplicaStatuses(tfjob, rtype, pod)
+			if rtype == tfv1alpha2.TFReplicaTypeWorker && index == 0 {
+				addTFJobReplicaStatuses(rtype, index, pod, rstatus)
+			}
+
+			if rtype == tfv1alpha2.TFReplicaTypePS {
+				addTFJobReplicaStatuses(rtype, index, pod, rstatus)
+			}
 		}
 	}
 
-	return tc.updateStatus(tfjob, rtype, replicas)
+	return nil
+	//	return tc.updateStatus(tfjob, rtype, replicas)
 }
 
 // getPodSlices returns a slice, which element is the slice of pod.
@@ -79,7 +91,7 @@ func getPodSlices(pods []*v1.Pod, replicas int, logger *log.Entry) [][]*v1.Pod {
 		}
 		index, err := strconv.Atoi(pod.Labels[tfReplicaIndexLabel])
 		if err != nil {
-			logger.Warning("Error when strconv.Atoi: %v", err)
+			logger.Warningf("Error when strconv.Atoi: %v", err)
 			continue
 		}
 		if index < 0 || index >= replicas {
@@ -123,7 +135,10 @@ func (tc *TFJobController) createNewPod(tfjob *tfv1alpha2.TFJob, rt, index strin
 	}
 
 	// Generate TF_CONFIG JSON string.
-	tfConfigStr := genTFConfigJSONStr(tfjob, rt, index)
+	tfConfigStr, err := genTFConfigJSONStr(tfjob, rt, index)
+	if err != nil {
+		return err
+	}
 
 	if tfConfigStr == "" {
 		return nil
@@ -134,7 +149,7 @@ func (tc *TFJobController) createNewPod(tfjob *tfv1alpha2.TFJob, rt, index strin
 			podTemplate.Spec.Containers[i].Env = make([]v1.EnvVar, 0)
 		}
 		podTemplate.Spec.Containers[i].Env = append(podTemplate.Spec.Containers[i].Env, v1.EnvVar{
-			Name:  "TF_CONFIG",
+			Name:  tfConfig,
 			Value: tfConfigStr,
 		})
 	}
