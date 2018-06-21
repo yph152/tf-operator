@@ -461,6 +461,82 @@ func TestStatuses(t *testing.T) {
 			restartPolicyChief: tfv1alpha2.RestartPolicyNever,
 			expectedType:       tfv1alpha2.TFJobFailed,
 		},
+		testCase{
+			description:     "Chief worker is failed 7",
+			tfJob:           testutil.NewTFJobWithChief(1, 1),
+			failedPS:        1,
+			succeededPS:     0,
+			runningPS:       0,
+			restartPolicyPS: tfv1alpha2.RestartPolicyExitCode,
+
+			failedWorker:        0,
+			succeededWorker:     0,
+			runningWorker:       1,
+			restartPolicyWorker: tfv1alpha2.RestartPolicyExitCode,
+
+			failedChief:        0,
+			succeededChief:     0,
+			runningChief:       1,
+			restartPolicyChief: tfv1alpha2.RestartPolicyExitCode,
+			expectedType:       tfv1alpha2.TFJobFailed,
+		},
+		testCase{
+			description:     "Chief worker is failed 8",
+			tfJob:           testutil.NewTFJobWithChief(1, 1),
+			failedPS:        1,
+			succeededPS:     0,
+			runningPS:       0,
+			restartPolicyPS: tfv1alpha2.RestartPolicyNever,
+
+			failedWorker:        0,
+			succeededWorker:     0,
+			runningWorker:       1,
+			restartPolicyWorker: tfv1alpha2.RestartPolicyExitCode,
+
+			failedChief:        0,
+			succeededChief:     0,
+			runningChief:       1,
+			restartPolicyChief: tfv1alpha2.RestartPolicyExitCode,
+			expectedType:       tfv1alpha2.TFJobFailed,
+		},
+		testCase{
+			description:     "Chief worker is failed 9",
+			tfJob:           testutil.NewTFJobWithChief(1, 1),
+			failedPS:        1,
+			succeededPS:     0,
+			runningPS:       0,
+			restartPolicyPS: tfv1alpha2.RestartPolicyExitCode,
+
+			failedWorker:        0,
+			succeededWorker:     0,
+			runningWorker:       1,
+			restartPolicyWorker: tfv1alpha2.RestartPolicyExitCode,
+
+			failedChief:        0,
+			succeededChief:     0,
+			runningChief:       1,
+			restartPolicyChief: tfv1alpha2.RestartPolicyNever,
+			expectedType:       tfv1alpha2.TFJobFailed,
+		},
+		testCase{
+			description:     "Chief worker is failed 10",
+			tfJob:           testutil.NewTFJob(1, 1),
+			failedPS:        0,
+			succeededPS:     0,
+			runningPS:       1,
+			restartPolicyPS: tfv1alpha2.RestartPolicyExitCode,
+
+			failedWorker:        1,
+			succeededWorker:     0,
+			runningWorker:       0,
+			restartPolicyWorker: tfv1alpha2.RestartPolicyExitCode,
+
+			failedChief:        0,
+			succeededChief:     0,
+			runningChief:       0,
+			restartPolicyChief: tfv1alpha2.RestartPolicyExitCode,
+			expectedType:       tfv1alpha2.TFJobFailed,
+		},
 	}
 
 	for _, val := range testCases {

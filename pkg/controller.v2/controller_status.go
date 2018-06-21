@@ -179,9 +179,7 @@ func updateStatusDistributed(tfjob *tfv1alpha2.TFJob, replicasStatus map[string]
 	}
 
 	restartPolicy := getRestartPolicy(tfjob)
-	if (status[psRunningReason] == psReplicas && status[realChiefRunningReason] == 1) ||
-		(restartPolicy[tfv1alpha2.TFReplicaTypePS] != tfv1alpha2.RestartPolicyNever ||
-			restartPolicy[tfv1alpha2.TFReplicaTypeChief] != tfv1alpha2.RestartPolicyNever) {
+	if getRunning(restartPolicy, status, realChiefRunningReason, psReplicas) {
 		//Running
 		msg := fmt.Sprintf("TFJob %s is running.", tfjob.Name)
 		now := metav1.Now()
@@ -204,9 +202,7 @@ func updateStatusDistributed(tfjob *tfv1alpha2.TFJob, replicasStatus map[string]
 		}
 
 	}
-	if (restartPolicy[tfv1alpha2.TFReplicaTypeChief] == tfv1alpha2.RestartPolicyNever &&
-		restartPolicy[tfv1alpha2.TFReplicaTypePS] == tfv1alpha2.RestartPolicyNever) &&
-		(status[psFailedReason] != 0 || status[realChiefFailedReason] != 0) {
+	if getFailed(restartPolicy, status, realChiefFailedReason) {
 		//Failed
 		msg := fmt.Sprintf("TFJob %s is failed.", tfjob.Name)
 		now := metav1.Now()
@@ -234,6 +230,50 @@ func updateStatusDistributed(tfjob *tfv1alpha2.TFJob, replicasStatus map[string]
 	return nil
 }
 
+func getRunning(restartPolicy map[tfv1alpha2.TFReplicaType]tfv1alpha2.RestartPolicy, status map[string]int, realChiefRunningReason string, psReplicas int) bool {
+	if status[psRunningReason] == psReplicas && status[realChiefRunningReason] == 1 {
+		return true
+	}
+	if restartPolicy[tfv1alpha2.TFReplicaTypePS] != tfv1alpha2.RestartPolicyNever &&
+		restartPolicy[tfv1alpha2.TFReplicaTypePS] != tfv1alpha2.RestartPolicyExitCode {
+		return true
+	}
+	if restartPolicy[tfv1alpha2.TFReplicaTypeChief] != tfv1alpha2.RestartPolicyNever &&
+		restartPolicy[tfv1alpha2.TFReplicaTypeChief] != tfv1alpha2.RestartPolicyExitCode {
+		return true
+	}
+	return false
+}
+
+func getFailed(restartPolicy map[tfv1alpha2.TFReplicaType]tfv1alpha2.RestartPolicy, status map[string]int, realChiefFailedReason string) bool {
+	if restartPolicy[tfv1alpha2.TFReplicaTypeChief] == tfv1alpha2.RestartPolicyNever &&
+		restartPolicy[tfv1alpha2.TFReplicaTypePS] == tfv1alpha2.RestartPolicyNever {
+		if status[psFailedReason] != 0 || status[realChiefFailedReason] != 0 {
+			return true
+		}
+	}
+	if restartPolicy[tfv1alpha2.TFReplicaTypeChief] == tfv1alpha2.RestartPolicyExitCode &&
+		restartPolicy[tfv1alpha2.TFReplicaTypePS] == tfv1alpha2.RestartPolicyExitCode {
+		if status[psFailedReason] != 0 || status[realChiefFailedReason] != 0 {
+			return true
+		}
+	}
+	if restartPolicy[tfv1alpha2.TFReplicaTypeChief] == tfv1alpha2.RestartPolicyExitCode &&
+		restartPolicy[tfv1alpha2.TFReplicaTypePS] == tfv1alpha2.RestartPolicyNever {
+		if status[psFailedReason] != 0 || status[realChiefFailedReason] != 0 {
+			return true
+		}
+	}
+	if restartPolicy[tfv1alpha2.TFReplicaTypeChief] == tfv1alpha2.RestartPolicyNever &&
+		restartPolicy[tfv1alpha2.TFReplicaTypePS] == tfv1alpha2.RestartPolicyExitCode {
+		if status[psFailedReason] != 0 || status[realChiefFailedReason] != 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 //updateStatus updates the  tfjob status according to the replica status map.
 func updateStatus(tfjob *tfv1alpha2.TFJob, rstatus map[string]v1.PodPhase) error {
 	chiefReplicas, psReplicas, workerReplicas := getReplicasForTFJobType(tfjob)
@@ -258,6 +298,9 @@ func updateStatus(tfjob *tfv1alpha2.TFJob, rstatus map[string]v1.PodPhase) error
 func getRestartPolicy(tfjob *tfv1alpha2.TFJob) map[tfv1alpha2.TFReplicaType]tfv1alpha2.RestartPolicy {
 	restartPolicy := make(map[tfv1alpha2.TFReplicaType]tfv1alpha2.RestartPolicy)
 	for rtype, spec := range tfjob.Spec.TFReplicaSpecs {
+		if rtype == tfv1alpha2.TFReplicaTypeWorker && tfjob.Spec.TFReplicaSpecs[tfv1alpha2.TFReplicaTypeChief] == nil {
+			rtype = tfv1alpha2.TFReplicaTypeChief
+		}
 		restartPolicy[rtype] = spec.RestartPolicy
 	}
 

@@ -89,6 +89,7 @@ func (tc *TFJobController) reconcilePods(
 					if err := tc.podControl.DeletePod(pod.Namespace, pod.Name, tfjob); err != nil {
 						return err
 					}
+					pod.Status.Phase = v1.PodRunning
 				}
 			}
 			updateTFJobReplicaStatuses(tfjob, rtype, pod)

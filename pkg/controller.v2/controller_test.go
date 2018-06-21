@@ -169,7 +169,7 @@ func TestNormalPath(t *testing.T) {
 			2, 0, 2,
 			1, 0, 0,
 			0, 0, 0,
-			&tfJobRunning, tfJobRunningReason,
+			nil, "",
 			false,
 		},
 		"Distributed TFJob (4 workers, 2 PS) is created, 2 workers, 1 PS are pending, 1 worker is succeeded": {
